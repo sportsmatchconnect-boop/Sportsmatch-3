@@ -50,17 +50,17 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-
+ 
 const SUPABASE_URL = 'https://vgwycjbmrswkagjddamp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnd3ljamJtcnN3a2FnamRkYW1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNDA5NTQsImV4cCI6MjA5MjkxNjk1NH0.GX3ff8a4wJameHWfjkn4VWeJL9bhJ-Hj9J3LP91tgqU';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+ 
 const S = {
   get: () => JSON.parse(localStorage.getItem('sm') || 'null'),
   set: u => localStorage.setItem('sm', JSON.stringify(u)),
   clear: () => localStorage.removeItem('sm'),
 };
-
+ 
 const SPORTS = [
   {id:'soccer',e:'⚽',l:'Soccer'},{id:'basketball',e:'🏀',l:'Basketball'},
   {id:'tennis',e:'🎾',l:'Tennis'},{id:'volleyball',e:'🏐',l:'Volleyball'},
@@ -71,7 +71,7 @@ const LEVELS = ['Beginner','Intermediate','Advanced','Pro'];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const SPORT_COLOR = {soccer:'#16a34a',basketball:'#f97316',tennis:'#f59e0b',volleyball:'#3b82f6',pickleball:'#ec4899',ultimate:'#8b5cf6',running:'#06b6d4',golf:'#10b981'};
 const COLORS = ['#16a34a','#2563eb','#7c3aed','#ea580c','#db2777','#0891b2','#d97706'];
-
+ 
 const sportInfo = id => SPORTS.find(s=>s.id===id)||{e:'🏅',l:id};
 const fmtDate = ds => {
   const d=new Date(ds+'T00:00:00'),today=new Date();today.setHours(0,0,0,0);
@@ -83,7 +83,7 @@ const fmtTime = ts => {
   if(!ts)return'';const [h,m]=ts.split(':');const hr=parseInt(h);
   return `${hr>12?hr-12:hr||12}:${m} ${hr>=12?'PM':'AM'}`;
 };
-
+ 
 // ── CALENDAR HELPERS ──────────────────────────────────────────
 const makeICS = (game) => {
   const pad = n=>String(n).padStart(2,'0');
@@ -108,7 +108,7 @@ const googleCalURL = (game) => {
   const p=new URLSearchParams({action:'TEMPLATE',text:game.title,dates:`${fmt(dt)}/${fmt(end)}`,location:game.venue_name+(game.address?', '+game.address:'')});
   return`https://calendar.google.com/calendar/render?${p}`;
 };
-
+ 
 // ── NOTIFICATIONS ─────────────────────────────────────────────
 const queueNotif = async (type,game,emails) => {
   if(!emails||!emails.length)return;
@@ -121,22 +121,22 @@ const queueNotif = async (type,game,emails) => {
   try{await sb.from('notifications').insert({type,game_id:game.id,game_title:game.title,recipient_emails:emails,subject:subjects[type],body:bodies[type],sent:false,created_at:new Date().toISOString()});}
   catch(e){console.log('Notif queued:',type);}
 };
-
+ 
 // ── SHARED COMPONENTS ─────────────────────────────────────────
 const Spin=({c='white',s=18})=><div style={{width:s,height:s,borderRadius:'50%',border:`2.5px solid ${c}33`,borderTopColor:c,flexShrink:0}} className="spin"/>;
-
+ 
 const Avatar=({user,size=38,ring=false})=>{
   const color=user?.avatar_color||'#16a34a';
   const initials=(user?.full_name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   return<div style={{width:size,height:size,borderRadius:'50%',background:`linear-gradient(135deg,${color},${color}cc)`,display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:size>44?'.9rem':size>32?'.75rem':'.6rem',fontFamily:'Syne,sans-serif',flexShrink:0,boxShadow:ring?`0 0 0 3px white,0 0 0 5px ${color}55`:'none'}}>{initials}</div>;
 };
-
+ 
 const Inp=({style={},...props})=><input style={{width:'100%',height:44,padding:'0 14px',borderRadius:12,border:'1.5px solid #e2e8f0',fontSize:'.875rem',background:'white',fontFamily:'DM Sans,sans-serif',color:'#0f172a',...style}} {...props}/>;
 const Lbl=({children})=><p style={{fontSize:'.68rem',fontWeight:600,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:6}}>{children}</p>;
 const ErrBox=({msg})=>msg?<div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:10,padding:'10px 14px',color:'#ef4444',fontSize:'.8rem',lineHeight:1.5}}>{msg}</div>:null;
 const Handle=()=><div style={{width:36,height:4,background:'#e2e8f0',borderRadius:99,margin:'0 auto 1.25rem'}}/>;
 const SPill=({id})=>{const s=sportInfo(id);const c=SPORT_COLOR[id]||'#64748b';return<span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:999,fontSize:'.68rem',fontWeight:600,background:`${c}12`,color:c,border:`1px solid ${c}22`}}>{s.e} {s.l}</span>;};
-
+ 
 // ── LANDING ───────────────────────────────────────────────────
 const Landing=({onAuth})=>(
   <div style={{maxWidth:480,margin:'0 auto',minHeight:'100vh'}}>
@@ -184,7 +184,7 @@ const Landing=({onAuth})=>(
     </div>
   </div>
 );
-
+ 
 // ── AUTH ──────────────────────────────────────────────────────
 const AuthSheet=({mode:init,onAuth,onClose})=>{
   const [mode,setMode]=React.useState(init);
@@ -204,7 +204,7 @@ const AuthSheet=({mode:init,onAuth,onClose})=>{
       const color=COLORS[Math.floor(Math.random()*COLORS.length)];
       const{data,error}=await sb.from('users').insert({full_name:f.name.trim(),email:f.email.trim().toLowerCase(),password:f.password,avatar_color:color,onboarded:false}).select().single();
       if(error)throw error;
-      const u={...data};delete u.password;S.set(u);onAuth(u);
+      const u={...data};delete u.password;if(u.city||u.sports?.length)u.onboarded=true;S.set(u);onAuth(u);
     }catch(e){setErr(e.message||'Something went wrong.');}
     setBusy(false);
   };
@@ -242,7 +242,7 @@ const AuthSheet=({mode:init,onAuth,onClose})=>{
     </div>
   );
 };
-
+ 
 // ── ONBOARDING ────────────────────────────────────────────────
 const Onboarding=({user,onComplete})=>{
   const [step,setStep]=React.useState(0);
@@ -296,7 +296,7 @@ const Onboarding=({user,onComplete})=>{
     </div>
   );
 };
-
+ 
 // ── CALENDAR SHEET ────────────────────────────────────────────
 const CalSheet=({game,onClose})=>(
   <div className="overlay" onClick={onClose}>
@@ -316,33 +316,33 @@ const CalSheet=({game,onClose})=>(
     </div>
   </div>
 );
-
+ 
 // ── GAME CHAT ─────────────────────────────────────────────────
 const GameChat=({game,user,onClose})=>{
   const [msgs,setMsgs]=React.useState([]);
   const [text,setText]=React.useState('');
   const [sending,setSending]=React.useState(false);
   const bottomRef=React.useRef(null);
-
+ 
   const load=async()=>{
     const{data}=await sb.from('game_messages').select('*').eq('game_id',game.id).order('created_at',{ascending:true});
     setMsgs(data||[]);
     setTimeout(()=>bottomRef.current?.scrollIntoView({behavior:'smooth'}),100);
   };
-
+ 
   React.useEffect(()=>{
     load();
     const sub=sb.channel(`game_${game.id}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'game_messages',filter:`game_id=eq.${game.id}`},()=>load()).subscribe();
     return()=>sb.removeChannel(sub);
   },[game.id]);
-
+ 
   const send=async()=>{
     if(!text.trim()||sending)return;
     setSending(true);
     await sb.from('game_messages').insert({game_id:game.id,user_id:user.id,user_name:user.full_name,avatar_color:user.avatar_color,text:text.trim()});
     setText('');setSending(false);
   };
-
+ 
   return(
     <div className="overlay" onClick={onClose}>
       <div className="fullsheet" onClick={e=>e.stopPropagation()} style={{display:'flex',flexDirection:'column'}}>
@@ -376,7 +376,7 @@ const GameChat=({game,user,onClose})=>{
     </div>
   );
 };
-
+ 
 // ── PRIVATE MESSAGES ──────────────────────────────────────────
 const PrivateChat=({user,otherUser,onClose})=>{
   const [msgs,setMsgs]=React.useState([]);
@@ -384,26 +384,26 @@ const PrivateChat=({user,otherUser,onClose})=>{
   const [sending,setSending]=React.useState(false);
   const bottomRef=React.useRef(null);
   const threadId=[user.id,otherUser.id].sort().join('_');
-
+ 
   const load=async()=>{
     const{data}=await sb.from('private_messages').select('*').eq('thread_id',threadId).order('created_at',{ascending:true});
     setMsgs(data||[]);
     setTimeout(()=>bottomRef.current?.scrollIntoView({behavior:'smooth'}),100);
   };
-
+ 
   React.useEffect(()=>{
     load();
     const sub=sb.channel(`pm_${threadId}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'private_messages',filter:`thread_id=eq.${threadId}`},()=>load()).subscribe();
     return()=>sb.removeChannel(sub);
   },[threadId]);
-
+ 
   const send=async()=>{
     if(!text.trim()||sending)return;
     setSending(true);
     await sb.from('private_messages').insert({thread_id:threadId,sender_id:user.id,receiver_id:otherUser.id,text:text.trim()});
     setText('');setSending(false);
   };
-
+ 
   return(
     <div className="overlay" onClick={onClose}>
       <div className="fullsheet" onClick={e=>e.stopPropagation()} style={{display:'flex',flexDirection:'column'}}>
@@ -433,20 +433,20 @@ const PrivateChat=({user,otherUser,onClose})=>{
     </div>
   );
 };
-
+ 
 // ── INBOX ─────────────────────────────────────────────────────
 const Inbox=({user,friends,onFriendUpdate,onClose})=>{
   const [requests,setRequests]=React.useState([]);
   const [loading,setLoading]=React.useState(true);
   const [acting,setActing]=React.useState(null);
-
+ 
   const load=async()=>{
     const{data}=await sb.from('friend_requests').select('*').eq('to_id',user.id).eq('status','pending');
     setRequests(data||[]);setLoading(false);
   };
-
+ 
   React.useEffect(()=>{load();},[]);
-
+ 
   const respond=async(req,accept)=>{
     setActing(req.id);
     if(accept){
@@ -462,7 +462,7 @@ const Inbox=({user,friends,onFriendUpdate,onClose})=>{
     setRequests(r=>r.filter(x=>x.id!==req.id));
     setActing(null);
   };
-
+ 
   return(
     <div className="overlay" onClick={onClose}>
       <div className="fullsheet" onClick={e=>e.stopPropagation()}>
@@ -495,7 +495,7 @@ const Inbox=({user,friends,onFriendUpdate,onClose})=>{
     </div>
   );
 };
-
+ 
 // ── PLAYER DISCOVERY ──────────────────────────────────────────
 const Discovery=({user,friends,onFriendUpdate,onClose})=>{
   const [players,setPlayers]=React.useState([]);
@@ -505,11 +505,11 @@ const Discovery=({user,friends,onFriendUpdate,onClose})=>{
   const [sending,setSending]=React.useState(null);
   const [sent,setSent]=React.useState([]);
   const [chatWith,setChatWith]=React.useState(null);
-
+ 
   React.useEffect(()=>{
     sb.from('users').select('id,full_name,avatar_color,city,bio,sports,skill_level,friends').neq('id',user.id).then(({data})=>{setPlayers(data||[]);setLoading(false);});
   },[]);
-
+ 
   const sendReq=async(p)=>{
     setSending(p.id);
     const{data:ex}=await sb.from('friend_requests').select('id').eq('from_id',user.id).eq('to_id',p.id).maybeSingle();
@@ -518,13 +518,13 @@ const Discovery=({user,friends,onFriendUpdate,onClose})=>{
     }
     setSent(s=>[...s,p.id]);setSending(null);
   };
-
+ 
   const filtered=players.filter(p=>{
     if(search&&!p.full_name.toLowerCase().includes(search.toLowerCase()))return false;
     if(sport!=='all'&&!(p.sports||[]).includes(sport))return false;
     return true;
   });
-
+ 
   return(
     <div className="overlay" onClick={onClose}>
       <div className="fullsheet" onClick={e=>e.stopPropagation()}>
@@ -580,7 +580,7 @@ const Discovery=({user,friends,onFriendUpdate,onClose})=>{
     </div>
   );
 };
-
+ 
 // ── PLAYER ROW (in game detail) ───────────────────────────────
 const PlayerRow=({player,isHost,gear,user,friends,onSendReq,onMessage})=>{
   const isFriend=(friends||[]).includes(player.id);
@@ -608,7 +608,7 @@ const PlayerRow=({player,isHost,gear,user,friends,onSendReq,onMessage})=>{
     </div>
   );
 };
-
+ 
 // ── GAME DETAIL ───────────────────────────────────────────────
 const GameDetail=({game,user,friends,onClose,onUpdate,onFriendUpdate})=>{
   const [players,setPlayers]=React.useState([]);
@@ -621,7 +621,7 @@ const GameDetail=({game,user,friends,onClose,onUpdate,onFriendUpdate})=>{
   const [showChat,setShowChat]=React.useState(false);
   const [chatWith,setChatWith]=React.useState(null);
   const [sentReqs,setSentReqs]=React.useState([]);
-
+ 
   const pIds=game.players||[];
   const joined=pIds.includes(user?.id);
   const isHost=game.host_id===user?.id;
@@ -631,7 +631,7 @@ const GameDetail=({game,user,friends,onClose,onUpdate,onFriendUpdate})=>{
   const color=SPORT_COLOR[game.sport]||'#16a34a';
   const sport=sportInfo(game.sport);
   const gearMap=game.gear||{};
-
+ 
   React.useEffect(()=>{
     const load=async()=>{
       if(pIds.length===0){setLoading(false);return;}
@@ -642,7 +642,7 @@ const GameDetail=({game,user,friends,onClose,onUpdate,onFriendUpdate})=>{
     };
     load();
   },[game.id]);
-
+ 
   const toggleJoin=async()=>{
     if(!user||isHost||busy||(full&&!joined))return;
     setBusy(true);
@@ -658,7 +658,7 @@ const GameDetail=({game,user,friends,onClose,onUpdate,onFriendUpdate})=>{
     }
     onUpdate&&onUpdate();setBusy(false);onClose();
   };
-
+ 
   const saveGear=async()=>{
     if(!myGear.trim())return;
     setSavingGear(true);
@@ -666,13 +666,13 @@ const GameDetail=({game,user,friends,onClose,onUpdate,onFriendUpdate})=>{
     await sb.from('games').update({gear:ng}).eq('id',game.id);
     setSavingGear(false);setEditGear(false);onUpdate&&onUpdate();
   };
-
+ 
   const sendFriendReq=async(p)=>{
     const{data:ex}=await sb.from('friend_requests').select('id').eq('from_id',user.id).eq('to_id',p.id).maybeSingle();
     if(!ex)await sb.from('friend_requests').insert({from_id:user.id,to_id:p.id,from_name:user.full_name,to_friends:p.friends||[],status:'pending'});
     setSentReqs(s=>[...s,p.id]);
   };
-
+ 
   return(
     <div className="overlay" onClick={onClose}>
       <div className="fullsheet" onClick={e=>e.stopPropagation()}>
@@ -743,7 +743,7 @@ const GameDetail=({game,user,friends,onClose,onUpdate,onFriendUpdate})=>{
     </div>
   );
 };
-
+ 
 // ── GAME CARD ─────────────────────────────────────────────────
 const GameCard=({game,user,onTap,idx=0})=>{
   const players=game.players||[];
@@ -761,14 +761,16 @@ const GameCard=({game,user,onTap,idx=0})=>{
         <div style={{display:'flex',gap:12,marginBottom:10}}>
           <div style={{width:46,height:46,borderRadius:14,background:`${color}12`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.4rem',flexShrink:0}}>{sport.e}</div>
           <div style={{flex:1,minWidth:0}}>
-            <p style={{fontWeight:700,fontSize:'.92rem',color:'#0f172a',lineHeight:1.25,marginBottom:2}}>{game.title}</p>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:4,marginBottom:2}}>
+              <p style={{fontWeight:700,fontSize:'.88rem',color:'#0f172a',lineHeight:1.25,flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{game.title}</p>
+              {(joined||isHost)&&<span style={{fontSize:'.6rem',fontWeight:700,background:'#f0fdf4',color:'#16a34a',padding:'2px 7px',borderRadius:99,border:'1px solid #86efac',flexShrink:0,whiteSpace:'nowrap'}}>{isHost?'Host':'Going'}</span>}
+            </div>
             <p style={{fontSize:'.72rem',color:'#94a3b8',marginBottom:1}}>📍 {game.venue_name}</p>
-            {game.address&&<p style={{fontSize:'.68rem',color:'#cbd5e1'}}>{game.address}</p>}
+            {game.address&&<p style={{fontSize:'.68rem',color:'#cbd5e1',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{game.address}</p>}
           </div>
-          {(joined||isHost)&&<span style={{fontSize:'.65rem',fontWeight:700,background:'#f0fdf4',color:'#16a34a',padding:'3px 8px',borderRadius:99,border:'1px solid #86efac',flexShrink:0,height:'fit-content'}}>{isHost?'Host':'Going'}</span>}
         </div>
-        <div style={{display:'flex',gap:16,fontSize:'.73rem',color:'#64748b',marginBottom:10}}>
-          <span>🗓 {fmtDate(game.date)}{game.time?` at ${fmtTime(game.time)}`:''}</span>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'3px 12px',fontSize:'.73rem',color:'#64748b',marginBottom:10}}>
+          <span>🗓 {fmtDate(game.date)}{game.time?` · ${fmtTime(game.time)}`:''}</span>
           <span>👥 {players.length}/{game.max_players}</span>
         </div>
         <div className="progress" style={{marginBottom:8}}><div className="progress-fill" style={{width:`${pct}%`,background:full?'#f87171':`linear-gradient(90deg,${color},${color}88)`}}/></div>
@@ -783,7 +785,7 @@ const GameCard=({game,user,onTap,idx=0})=>{
     </div>
   );
 };
-
+ 
 // ── CREATE GAME ───────────────────────────────────────────────
 const CreateSheet=({user,onDone,onClose})=>{
   const [f,setF]=React.useState({title:'',sport:'',date:'',time:'',venue:'',address:'',city:'Santa Barbara',max_players:8,notes:''});
@@ -791,7 +793,7 @@ const CreateSheet=({user,onDone,onClose})=>{
   const [busy,setBusy]=React.useState(false);
   const set=(k,v)=>{setF(p=>({...p,[k]:v}));setErr('');};
   const today=new Date().toISOString().split('T')[0];
-
+ 
   const submit=async()=>{
     if(!f.title.trim())return setErr('Give your game a title');
     if(!f.sport)return setErr('Pick a sport');
@@ -812,7 +814,7 @@ const CreateSheet=({user,onDone,onClose})=>{
     await queueNotif('new_game',newGame,emails);
     onDone&&onDone();onClose();
   };
-
+ 
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()}>
@@ -839,7 +841,7 @@ const CreateSheet=({user,onDone,onClose})=>{
     </div>
   );
 };
-
+ 
 // ── PROFILE ───────────────────────────────────────────────────
 const ProfilePage=({user,setUser,friends,onLogout,onMessage})=>{
   const [editing,setEditing]=React.useState(false);
@@ -848,7 +850,7 @@ const ProfilePage=({user,setUser,friends,onLogout,onMessage})=>{
   const [friendProfiles,setFriendProfiles]=React.useState([]);
   const [form,setForm]=React.useState({bio:user.bio||'',city:user.city||'',age:user.age||''});
   const [saving,setSaving]=React.useState(false);
-
+ 
   React.useEffect(()=>{
     sb.from('games').select('*').eq('host_id',user.id).order('date',{ascending:true}).then(({data})=>setMyGames(data||[]));
     sb.from('games').select('*').contains('players',[user.id]).order('date',{ascending:true}).then(({data})=>setJoinedGames(data||[]));
@@ -856,7 +858,7 @@ const ProfilePage=({user,setUser,friends,onLogout,onMessage})=>{
       sb.from('users').select('id,full_name,avatar_color,city,sports').in('id',friends).then(({data})=>setFriendProfiles(data||[]));
     }
   },[friends]);
-
+ 
   const save=async()=>{
     setSaving(true);
     const{data}=await sb.from('users').update(form).eq('id',user.id).select().single();
@@ -864,7 +866,7 @@ const ProfilePage=({user,setUser,friends,onLogout,onMessage})=>{
     if(data){const u={...data};delete u.password;setUser(u);S.set(u);}
     setEditing(false);
   };
-
+ 
   return(
     <div style={{minHeight:'100vh',background:'#f8fafc',paddingBottom:90}}>
       <div style={{background:'linear-gradient(155deg,#052e16,#16a34a)',padding:'3rem 1.25rem 2.5rem'}}>
@@ -957,7 +959,7 @@ const ProfilePage=({user,setUser,friends,onLogout,onMessage})=>{
     </div>
   );
 };
-
+ 
 // ── MAIN FEED ─────────────────────────────────────────────────
 const Feed=({user,setUser})=>{
   const [games,setGames]=React.useState([]);
@@ -972,23 +974,23 @@ const Feed=({user,setUser})=>{
   const [inboxCount,setInboxCount]=React.useState(0);
   const [chatWith,setChatWith]=React.useState(null);
   const today=new Date().toISOString().split('T')[0];
-
+ 
   const load=async()=>{
     const{data}=await sb.from('games').select('*').gte('date',today).order('date',{ascending:true});
     setGames(data||[]);setLoading(false);
   };
-
+ 
   const loadInboxCount=async()=>{
     const{count}=await sb.from('friend_requests').select('*',{count:'exact',head:true}).eq('to_id',user.id).eq('status','pending');
     setInboxCount(count||0);
   };
-
+ 
   React.useEffect(()=>{load();loadInboxCount();},[]);
-
+ 
   const handleLogout=()=>{S.clear();window.location.reload();};
   const filtered=sport==='all'?games:games.filter(g=>g.sport===sport);
   const myCount=games.filter(g=>(g.players||[]).includes(user.id)||g.host_id===user.id).length;
-
+ 
   const NavBar=({active})=>(
     <div className="nav">
       <button className="nav-item" onClick={()=>setTab('feed')}>
@@ -1015,7 +1017,7 @@ const Feed=({user,setUser})=>{
       </button>
     </div>
   );
-
+ 
   if(tab==='profile')return(
     <div style={{maxWidth:480,margin:'0 auto'}}>
       <ProfilePage user={user} setUser={setUser} friends={friends} onLogout={handleLogout} onMessage={p=>setChatWith(p)}/>
@@ -1024,7 +1026,7 @@ const Feed=({user,setUser})=>{
       {chatWith&&<PrivateChat user={user} otherUser={chatWith} onClose={()=>setChatWith(null)}/>}
     </div>
   );
-
+ 
   return(
     <div style={{maxWidth:480,margin:'0 auto',minHeight:'100vh',background:'#f8fafc',paddingBottom:90}}>
       <div style={{background:'linear-gradient(155deg,#052e16,#16a34a)',padding:'3rem 1.25rem 1.5rem'}}>
@@ -1073,27 +1075,28 @@ const Feed=({user,setUser})=>{
     </div>
   );
 };
-
+ 
 // ── APP ───────────────────────────────────────────────────────
 const App=()=>{
   const [user,setUser]=React.useState(()=>S.get());
   const [authMode,setAuthMode]=React.useState(null);
   const handleAuth=u=>{setUser(u);setAuthMode(null);};
   const updateUser=u=>{setUser(u);S.set(u);};
-
+ 
   if(!user)return(
     <div style={{maxWidth:480,margin:'0 auto',minHeight:'100vh',position:'relative'}}>
       <Landing onAuth={mode=>setAuthMode(mode)}/>
       {authMode&&<AuthSheet mode={authMode} onAuth={handleAuth} onClose={()=>setAuthMode(null)}/>}
     </div>
   );
-
-  if(!user.onboarded)return<Onboarding user={user} onComplete={u=>updateUser({...u,onboarded:true})}/>;
-
+ 
+  if(user.onboarded===false)return<Onboarding user={user} onComplete={u=>updateUser({...u,onboarded:true})}/>;
+ 
   return<Feed user={user} setUser={updateUser}/>;
 };
-
+ 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
+ 
