@@ -145,11 +145,12 @@ const googleMapsURL=game=>{const addr=encodeURIComponent(`${game.address||game.v
 const queueNotif=async(type,game,emails)=>{
   if(!emails||!emails.length)return;
   const sport=sportInfo(game.sport).l;
-  const subjects={new_game:`New ${sport} game: ${game.title}`,almost_full:`Almost full: ${game.title}`,join_request:`Someone wants to join your game: ${game.title}`};
+  const subjects={new_game:`New ${sport} game: ${game.title}`,almost_full:`Almost full: ${game.title}`,join_request:`Someone wants to join your game: ${game.title}`,friend_request:`${game.title} sent you a friend request on SportsMatch`};
   const bodies={
     new_game:`A new ${sport} game was posted!\n\n${game.title}\nWhere: ${game.venue_name}${game.address?', '+game.address:''}\nWhen: ${game.date}${game.time?' at '+game.time:''}\n\nOpen SportsMatch to join.`,
     almost_full:`${game.title} is almost full! Only ${game.max_players-(game.players||[]).length} spots left.\nWhere: ${game.venue_name}\nWhen: ${fmtDate(game.date)}.\n\nJoin now.`,
     join_request:`Someone has requested to join your private game "${game.title}".\n\nOpen SportsMatch to admit or deny them.`,
+    friend_request:`${game.title} wants to be friends with you on SportsMatch.\n\nOpen the app to accept or decline.`,
   };
   try{await sb.from('notifications').insert({type,game_id:game.id,game_title:game.title,recipient_emails:emails,subject:subjects[type],body:bodies[type],sent:false,created_at:new Date().toISOString()});}
   catch(e){console.log('Notif queued:',type);}
@@ -430,11 +431,23 @@ const GameChat=({game,user,onClose})=>{
           })}
           <div ref={bottomRef}/>
         </div>
-        <div style={{padding:'1rem 1.25rem 1.5rem',borderTop:'1px solid #f1f5f9',background:'white',display:'flex',gap:10}}>
-          <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="Message the group..." style={{flex:1,height:44,padding:'0 14px',borderRadius:22,border:'1.5px solid #e2e8f0',fontSize:'.875rem',fontFamily:'DM Sans,sans-serif'}}/>
-          <button onClick={send} disabled={!text.trim()} className="btn-green" style={{width:44,height:44,borderRadius:22,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
+        <div style={{padding:'.5rem 1.25rem 0',background:'white'}}>
+          {!localStorage.getItem('sm_chat_notice')&&(
+            <div style={{background:'#f8fafc',borderRadius:10,padding:'8px 12px',marginBottom:6,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:'.9rem'}}>ℹ️</span>
+              <p style={{fontSize:'.72rem',color:'#64748b',flex:1,lineHeight:1.4}}>Messages are saved for 30 days, then deleted.</p>
+              <button onClick={()=>{localStorage.setItem('sm_chat_notice','1');}} style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:'.75rem',padding:'2px',flexShrink:0}}>✕</button>
+            </div>
+          )}
+        </div>
+        <div style={{padding:'.5rem 1.25rem 1.5rem',borderTop:'1px solid #f1f5f9',background:'white',display:'flex',gap:10,flexDirection:'column'}}>
+          <div style={{display:'flex',gap:10}}>
+            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="Message the group..." style={{flex:1,height:44,padding:'0 14px',borderRadius:22,border:'1.5px solid #e2e8f0',fontSize:'.875rem',fontFamily:'DM Sans,sans-serif'}}/>
+            <button onClick={send} disabled={!text.trim()} className="btn-green" style={{width:44,height:44,borderRadius:22,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <p style={{fontSize:'.65rem',color:'#cbd5e1',textAlign:'center'}}>Messages are automatically deleted after 30 days</p>
         </div>
       </div>
     </div>
@@ -483,11 +496,23 @@ const PrivateChat=({user,otherUser,onClose})=>{
           {msgs.map((m,i)=>{const isMe=m.sender_id===user.id;return<div key={m.id||i} style={{display:'flex',justifyContent:isMe?'flex-end':'flex-start'}}><div className={isMe?'msg-me':'msg-them'}>{m.text}</div></div>;})}
           <div ref={bottomRef}/>
         </div>
-        <div style={{padding:'1rem 1.25rem 1.5rem',borderTop:'1px solid #f1f5f9',background:'white',display:'flex',gap:10}}>
-          <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder={`Message ${otherUser.full_name.split(' ')[0]}...`} style={{flex:1,height:44,padding:'0 14px',borderRadius:22,border:'1.5px solid #e2e8f0',fontSize:'.875rem',fontFamily:'DM Sans,sans-serif'}}/>
-          <button onClick={send} disabled={!text.trim()} className="btn-green" style={{width:44,height:44,borderRadius:22,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
+        <div style={{padding:'.5rem 1.25rem 0',background:'white'}}>
+          {!localStorage.getItem('sm_chat_notice')&&(
+            <div style={{background:'#f8fafc',borderRadius:10,padding:'8px 12px',marginBottom:6,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:'.9rem'}}>ℹ️</span>
+              <p style={{fontSize:'.72rem',color:'#64748b',flex:1,lineHeight:1.4}}>Messages are saved for 30 days, then deleted.</p>
+              <button onClick={()=>{localStorage.setItem('sm_chat_notice','1');}} style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:'.75rem',padding:'2px',flexShrink:0}}>✕</button>
+            </div>
+          )}
+        </div>
+        <div style={{padding:'.5rem 1.25rem 1.5rem',borderTop:'1px solid #f1f5f9',background:'white',display:'flex',gap:10,flexDirection:'column'}}>
+          <div style={{display:'flex',gap:10}}>
+            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder={`Message ${otherUser.full_name.split(' ')[0]}...`} style={{flex:1,height:44,padding:'0 14px',borderRadius:22,border:'1.5px solid #e2e8f0',fontSize:'.875rem',fontFamily:'DM Sans,sans-serif'}}/>
+            <button onClick={send} disabled={!text.trim()} className="btn-green" style={{width:44,height:44,borderRadius:22,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <p style={{fontSize:'.65rem',color:'#cbd5e1',textAlign:'center'}}>Messages are automatically deleted after 30 days</p>
         </div>
       </div>
     </div>
@@ -736,7 +761,14 @@ const Discovery=({user,friends,onClose})=>{
   const sendReq=async(p)=>{
     setSending(p.id);
     const{data:ex}=await sb.from('friend_requests').select('id').eq('from_id',user.id).eq('to_id',p.id).maybeSingle();
-    if(!ex)await sb.from('friend_requests').insert({from_id:user.id,to_id:p.id,from_name:user.full_name,to_friends:p.friends||[],status:'pending'});
+    if(!ex){
+      await sb.from('friend_requests').insert({from_id:user.id,to_id:p.id,from_name:user.full_name,to_friends:p.friends||[],status:'pending'});
+      // Email notification to recipient — reuse queueNotif with sender name as 'title' field
+      const{data:recipient}=await sb.from('users').select('email').eq('id',p.id).single();
+      if(recipient?.email){
+        await queueNotif('friend_request',{title:user.full_name,sport:'',venue_name:'',address:'',date:'',time:'',max_players:0,players:[],id:'friend'},[recipient.email]);
+      }
+    }
     setSent(s=>[...s,p.id]);setSending(null);
   };
 
@@ -920,7 +952,13 @@ const GameDetail=({game,user,friends,onClose,onUpdate,onFriendUpdate,onDelete})=
 
   const sendFriendReq=async(p)=>{
     const{data:ex}=await sb.from('friend_requests').select('id').eq('from_id',user.id).eq('to_id',p.id).maybeSingle();
-    if(!ex)await sb.from('friend_requests').insert({from_id:user.id,to_id:p.id,from_name:user.full_name,to_friends:p.friends||[],status:'pending'});
+    if(!ex){
+      await sb.from('friend_requests').insert({from_id:user.id,to_id:p.id,from_name:user.full_name,to_friends:p.friends||[],status:'pending'});
+      const{data:recipient}=await sb.from('users').select('email').eq('id',p.id).single();
+      if(recipient?.email){
+        await queueNotif('friend_request',{title:user.full_name,sport:'',venue_name:'',address:'',date:'',time:'',max_players:0,players:[],id:'friend'},[recipient.email]);
+      }
+    }
     setSentReqs(s=>[...s,p.id]);
   };
 
@@ -1208,6 +1246,7 @@ const ProfilePage=({user,setUser,friends,onLogout,onMessage})=>{
   const [friendProfiles,setFriendProfiles]=React.useState([]);
   const [form,setForm]=React.useState({bio:user.bio||'',city:user.city||'',age:user.age||''});
   const [saving,setSaving]=React.useState(false);
+  const [showAllGames,setShowAllGames]=React.useState(false);
   React.useEffect(()=>{
     sb.from('games').select('*').eq('host_id',user.id).order('date',{ascending:true}).then(({data})=>setMyGames(data||[]));
     sb.from('games').select('*').contains('players',[user.id]).order('date',{ascending:true}).then(({data})=>setJoinedGames(data||[]));
@@ -1289,8 +1328,12 @@ const ProfilePage=({user,setUser,friends,onLogout,onMessage})=>{
         )}
         {myGames.length>0&&(
           <div className="card" style={{padding:'1rem'}}>
-            <p style={{fontWeight:700,fontSize:'.85rem',color:'#0f172a',marginBottom:12}}>Games You Created</p>
-            {myGames.slice(0,3).map(g=>(
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              <p style={{fontWeight:700,fontSize:'.85rem',color:'#0f172a'}}>Games You Created</p>
+              {myGames.length>3&&<button onClick={()=>setShowAllGames(s=>!s)} style={{background:'none',border:'none',color:'#16a34a',fontSize:'.75rem',fontWeight:600,cursor:'pointer'}}>{showAllGames?'Show less':'See all'} ({myGames.length})</button>}
+            </div>
+            <div style={{maxHeight:showAllGames?'400px':'none',overflowY:showAllGames?'auto':'visible'}}>
+            {(showAllGames?myGames:myGames.slice(0,3)).map(g=>(
               <div key={g.id} style={{padding:'8px 0',borderBottom:'1px solid #f8fafc'}}>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:g.is_private&&g.join_code?6:0}}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:'1.1rem'}}>{sportInfo(g.sport).e}</span><div><p style={{fontWeight:600,fontSize:'.82rem',color:'#0f172a'}}>{g.title}{g.is_private?' 🔒':''}</p><p style={{fontSize:'.7rem',color:'#94a3b8'}}>{fmtDate(g.date)}</p></div></div>
@@ -1308,6 +1351,7 @@ const ProfilePage=({user,setUser,friends,onLogout,onMessage})=>{
                 )}
               </div>
             ))}
+            </div>
           </div>
         )}
       </div>
@@ -1348,6 +1392,8 @@ const Feed=({user,setUser})=>{
   };
   const deleteGame=async(gameId)=>{
     await sb.from('games').delete().eq('id',gameId).eq('host_id',user.id);
+    // Instantly remove from privateGames state so pill disappears immediately
+    setPrivateGames(prev=>prev.filter(g=>g.id!==gameId));
     setConfirmDelete(null);setDetail(null);setPrivateDetail(null);
     load();loadPrivateGames();
   };
