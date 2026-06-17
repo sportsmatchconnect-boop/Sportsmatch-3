@@ -196,12 +196,13 @@ const googleMapsURL=game=>{const addr=encodeURIComponent(`${game.address||game.v
 const queueNotif=async(type,game,emails)=>{
   if(!emails||!emails.length)return;
   const sport=sportInfo(game.sport).l;
-  const subjects={new_game:`New ${sport} game: ${game.title}`,almost_full:`Almost full: ${game.title}`,join_request:`Someone wants to join your game: ${game.title}`,friend_request:`${game.title} sent you a friend request on SportsMatch`};
+  const subjects={new_game:`New ${sport} game: ${game.title}`,almost_full:`Almost full: ${game.title}`,join_request:`Someone wants to join your game: ${game.title}`,friend_request:`${game.title} sent you a friend request on SportsMatch`,game_message:`New message in: ${game.title}`};
   const bodies={
     new_game:`A new ${sport} game was posted!\n\n${game.title}\nWhere: ${game.venue_name}${game.address?', '+game.address:''}\nWhen: ${game.date}${game.time?' at '+fmtTime(game.time):''}\n\nJoin here: https://playsportsmatch.com/?game=${game.id}\n\nOpen SportsMatch to join.`,
     almost_full:`${game.title} is almost full! Only ${game.max_players-(game.players||[]).length} spots left.\nWhere: ${game.venue_name}\nWhen: ${fmtDate(game.date)}.\n\nJoin now.`,
     join_request:`Someone has requested to join your private game "${game.title}".\n\nOpen SportsMatch to admit or deny them.`,
     friend_request:`${game.title} wants to be friends with you on SportsMatch.\n\nOpen the app to accept or decline.`,
+    game_message:`${game.venue_name} sent a message in ${game.title}:\n\n"${game.address}"\n\nView conversation: https://playsportsmatch.com/?game=${game.id}`,
   };
   try{await sb.from('notifications').insert({type,game_id:game.id,game_title:game.title,recipient_emails:emails,subject:subjects[type],body:bodies[type],sent:false,created_at:new Date().toISOString()});}
   catch(e){console.log('Notif queued:',type);}
@@ -974,6 +975,23 @@ const GameChat=({game,user,onClose})=>{
     setTimeout(()=>bottomRef.current?.scrollIntoView({behavior:'smooth'}),50);
     setSending(true);
     await sb.from('game_messages').insert(newMsg);
+    try{
+      const fifteenAgo=new Date(Date.now()-15*60*1000).toISOString();
+      const{data:recent}=await sb.from('game_messages').select('id').eq('game_id',game.id).neq('user_id',user.id).gte('created_at',fifteenAgo).limit(1);
+      if(!recent||recent.length===0){
+        const{data:gameData}=await sb.from('games').select('players,host_id,title,sport,venue_name,address,date,time,id').eq('id',game.id).single();
+        if(gameData){
+          const allIds=[...new Set([...(gameData.players||[]),gameData.host_id])].filter(id=>id&&id!==user.id);
+          if(allIds.length>0){
+            const{data:pUsers}=await sb.from('users').select('email').in('id',allIds);
+            const emails=(pUsers||[]).map(u=>u.email).filter(Boolean);
+            if(emails.length>0){
+              await queueNotif('game_message',{...gameData,venue_name:user.full_name,address:newMsg.text},emails);
+            }
+          }
+        }
+      }
+    }catch(e){console.log('Chat notif skipped:',e.message);}
     setSending(false);
   };
   return(
@@ -3065,43 +3083,28 @@ const GuestFeedDesktop=({onAuth})=>{
   const [sport,setSport]=React.useState('all');
   const [modal,setModal]=React.useState(null);
   const today=localToday();
-
   React.useEffect(()=>{
-    sb.from('games').select('*').gte('date',today).or('is_private.is.null,is_private.eq.false,show_in_feed.eq.true').order('date',{ascending:true}).then(({data})=>{
-      setGames(data||[]);setLoading(false);
-    });
+    sb.from('games').select('*').gte('date',today).or('is_private.is.null,is_private.eq.false,show_in_feed.eq.true').order('date',{ascending:true}).then(({data})=>{setGames(data||[]);setLoading(false);});
   },[]);
-
   const filtered=sport==='all'?games:games.filter(g=>g.sport===sport);
   const todayGames=games.filter(g=>g.date===today);
-
   const TAB_DESCS={
     find:{title:'Find Players',desc:'Browse athlete profiles, see who plays your sport, and connect with people in your area.'},
     inbox:{title:'Inbox',desc:'Get notified when someone accepts your join request, sends you a friend request, or messages you about a game.'},
     archive:{title:'Archive',desc:'Players can add photos from their games here — a living photo album of every game on SportsMatch.'},
-    profile:{title:'Profile',desc:'Your personal hub: track games you\'ve joined, see your stats, manage friends, and earn host badges.'},
+    profile:{title:'Profile',desc:"Your personal hub: track games you've joined, see your stats, manage friends, and earn host badges."},
     create:{title:'Create a Game',desc:'Host your own pickup game — set the sport, time, location, and how many players you need.'},
   };
   const prompt=(key)=>setModal(TAB_DESCS[key]);
-
-  const navItems=[
-    {id:'games',icon:'🏠',label:'Games'},
-    {id:'discover',icon:'🔍',label:'Find Players'},
-    {id:'inbox',icon:'📬',label:'Inbox'},
-    {id:'archive',icon:'📸',label:'Archive'},
-    {id:'profile',icon:'👤',label:'Profile'},
-  ];
-
   return(
     <div style={{display:'flex',minHeight:'100vh',background:'#f0fdf4'}}>
-      {/* SIDEBAR — identical to DesktopApp */}
       <div style={{width:260,flexShrink:0,background:'linear-gradient(160deg,#052e16,#14532d)',padding:'2rem 1.25rem',display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,height:'100vh',zIndex:10,overflowY:'auto'}}>
         <div style={{marginBottom:'2rem'}}>
           <span className="syne" style={{color:'white',fontSize:'1.5rem',fontWeight:800}}>Sports<span style={{color:'#4ade80'}}>Match</span></span>
           <p style={{color:'rgba(255,255,255,.45)',fontSize:'.72rem',marginTop:6}}>Santa Barbara, CA</p>
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:6,flex:1}}>
-          {navItems.map(item=>(
+          {[{id:'games',icon:'🏠',label:'Games'},{id:'discover',icon:'🔍',label:'Find Players'},{id:'inbox',icon:'📬',label:'Inbox'},{id:'archive',icon:'📸',label:'Archive'},{id:'profile',icon:'👤',label:'Profile'}].map(item=>(
             <button key={item.id} onClick={()=>prompt(item.id==='games'?'create':item.id)}
               style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:12,border:'none',background:item.id==='games'?'rgba(255,255,255,.2)':'rgba(255,255,255,.06)',color:'white',cursor:'pointer',fontSize:'.85rem',fontWeight:item.id==='games'?600:400,textAlign:'left',width:'100%',transition:'all .15s'}}
               onMouseEnter={e=>{if(item.id!=='games')e.currentTarget.style.background='rgba(255,255,255,.12)';}}
@@ -3114,20 +3117,16 @@ const GuestFeedDesktop=({onAuth})=>{
           </button>
         </div>
         <div style={{borderTop:'1px solid rgba(255,255,255,.1)',paddingTop:'1.25rem',marginTop:'1.25rem',display:'flex',flexDirection:'column',gap:8}}>
-          <button onClick={()=>onAuth('signup')} style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'10px 12px',borderRadius:12,border:'none',background:'white',color:'#16a34a',cursor:'pointer',fontSize:'.85rem',fontWeight:700,width:'100%'}}>Sign Up Free</button>
-          <button onClick={()=>onAuth('login')} style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'10px 12px',borderRadius:12,border:'1.5px solid rgba(255,255,255,.2)',background:'none',color:'rgba(255,255,255,.8)',cursor:'pointer',fontSize:'.85rem',fontWeight:500,width:'100%'}}>Sign In</button>
+          <button onClick={()=>onAuth('signup')} style={{padding:'10px 12px',borderRadius:12,border:'none',background:'white',color:'#16a34a',cursor:'pointer',fontSize:'.85rem',fontWeight:700,width:'100%'}}>Sign Up Free</button>
+          <button onClick={()=>onAuth('login')} style={{padding:'10px 12px',borderRadius:12,border:'1.5px solid rgba(255,255,255,.2)',background:'none',color:'rgba(255,255,255,.8)',cursor:'pointer',fontSize:'.85rem',fontWeight:500,width:'100%'}}>Sign In</button>
         </div>
       </div>
-
-      {/* MAIN */}
       <div style={{marginLeft:260,flex:1,padding:'2rem',minHeight:'100vh',overflowX:'hidden'}}>
         <div style={{maxWidth:900,margin:'0 auto'}}>
-          {/* Header */}
           <div style={{marginBottom:'1.75rem'}}>
             <h1 className="syne" style={{fontSize:'1.6rem',fontWeight:800,color:'#0f172a',marginBottom:4}}>Find Your Game 🏆</h1>
             <p style={{color:'#64748b',fontSize:'.88rem'}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} · Sign up to join games</p>
           </div>
-          {/* Stats — same 4-card layout */}
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:'2rem'}}>
             {[{label:'Games today',value:todayGames.length,color:'#16a34a',icon:'📅'},{label:'Total Games',value:games.length,color:'#2563eb',icon:'🎮'},{label:'You are in',value:'—',color:'#7c3aed',icon:'✓'},{label:'Friends',value:'—',color:'#f97316',icon:'🤝'}].map(s=>(
               <div key={s.label} style={{background:'white',borderRadius:16,padding:'1.25rem',border:'1px solid #f1f5f9',boxShadow:'0 1px 4px rgba(0,0,0,.05)'}}>
@@ -3136,35 +3135,22 @@ const GuestFeedDesktop=({onAuth})=>{
               </div>
             ))}
           </div>
-          {/* Sport filter */}
           <div style={{display:'flex',gap:8,marginBottom:'1.25rem',flexWrap:'wrap'}}>
             {['all',...SPORTS.map(s=>s.id)].map(s=>{const info=SPORTS.find(x=>x.id===s);const active=sport===s;return<button key={s} onClick={()=>setSport(s)} style={{padding:'6px 14px',borderRadius:99,fontSize:'.78rem',fontWeight:600,border:'none',cursor:'pointer',transition:'all .15s',background:active?'#16a34a':'white',color:active?'white':'#475569',boxShadow:active?'0 2px 8px rgba(22,163,74,.25)':'0 1px 3px rgba(0,0,0,.06)'}}>{s==='all'?'All Sports':`${info.e} ${info.l}`}</button>;})}
           </div>
-          {/* Game grid */}
           {loading&&<div style={{display:'flex',justifyContent:'center',padding:'4rem'}}><Spin c='#16a34a' s={28}/></div>}
-          {!loading&&filtered.length===0&&(
-            <div style={{background:'white',borderRadius:18,padding:'3rem',textAlign:'center',border:'1px solid #f1f5f9'}}>
-              <p style={{fontSize:'2.5rem',marginBottom:10}}>🏟️</p>
-              <p className="syne" style={{fontWeight:700,color:'#0f172a',marginBottom:6,fontSize:'1.1rem'}}>No games yet</p>
-              <p style={{color:'#94a3b8',fontSize:'.88rem',marginBottom:'1.5rem'}}>Sign up to be the first to create one.</p>
-              <button onClick={()=>prompt('create')} className="btn-green" style={{padding:'12px 28px',borderRadius:12,fontSize:'.9rem',fontFamily:'Syne,sans-serif',fontWeight:700}}>Create a Game</button>
-            </div>
-          )}
+          {!loading&&filtered.length===0&&<div style={{background:'white',borderRadius:18,padding:'3rem',textAlign:'center',border:'1px solid #f1f5f9'}}><p style={{fontSize:'2.5rem',marginBottom:10}}>🏟️</p><p className="syne" style={{fontWeight:700,color:'#0f172a',marginBottom:6}}>No games yet</p><p style={{color:'#94a3b8',fontSize:'.88rem',marginBottom:'1.5rem'}}>Sign up to be the first to create one.</p><button onClick={()=>prompt('create')} className="btn-green" style={{padding:'12px 28px',borderRadius:12,fontSize:'.9rem',fontFamily:'Syne,sans-serif',fontWeight:700}}>Create a Game</button></div>}
           {!loading&&filtered.length>0&&(
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
               {filtered.map((g,i)=>{
-                const color=SPORT_COLOR[g.sport]||'#16a34a';
-                const sp=sportInfo(g.sport);
+                const color=SPORT_COLOR[g.sport]||'#16a34a';const sp=sportInfo(g.sport);
                 return(
                   <div key={g.id} className="card up" style={{animationDelay:`${i*55}ms`,overflow:'hidden',cursor:'pointer'}} onClick={()=>prompt('create')}>
                     <div style={{height:4,background:`linear-gradient(90deg,${color},${color}44)`}}/>
                     <div style={{padding:'1rem'}}>
                       <div style={{display:'flex',gap:10,marginBottom:10,alignItems:'flex-start'}}>
                         <div style={{width:42,height:42,borderRadius:12,background:`${color}12`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.3rem',flexShrink:0}}>{sp.e}</div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <p style={{fontWeight:700,fontSize:'.88rem',color:'#0f172a',lineHeight:1.3}}>{g.title}</p>
-                          <p style={{fontSize:'.72rem',color:'#94a3b8',marginTop:2}}>Sign up to see details</p>
-                        </div>
+                        <div style={{flex:1,minWidth:0}}><p style={{fontWeight:700,fontSize:'.88rem',color:'#0f172a',lineHeight:1.3}}>{g.title}</p><p style={{fontSize:'.72rem',color:'#94a3b8',marginTop:2}}>Sign up to see details</p></div>
                       </div>
                       <div style={{position:'relative',borderRadius:10,overflow:'hidden'}}>
                         <div style={{display:'grid',gap:3,marginBottom:10,filter:'blur(4px)',userSelect:'none',pointerEvents:'none'}}>
@@ -3176,9 +3162,7 @@ const GuestFeedDesktop=({onAuth})=>{
                           <span style={{fontSize:'.7rem',fontWeight:700,color:'#16a34a',background:'white',padding:'3px 10px',borderRadius:99,boxShadow:'0 1px 4px rgba(0,0,0,.1)'}}>🔒 Sign up to see</span>
                         </div>
                       </div>
-                      <div style={{filter:'blur(3px)',borderRadius:99,overflow:'hidden',height:4,background:'#e2e8f0'}}>
-                        <div style={{width:'60%',height:'100%',background:`linear-gradient(90deg,${color},${color}88)`}}/>
-                      </div>
+                      <div style={{filter:'blur(3px)',borderRadius:99,overflow:'hidden',height:4,background:'#e2e8f0'}}><div style={{width:'60%',height:'100%',background:`linear-gradient(90deg,${color},${color}88)`}}/></div>
                     </div>
                   </div>
                 );
@@ -3187,8 +3171,6 @@ const GuestFeedDesktop=({onAuth})=>{
           )}
         </div>
       </div>
-
-      {/* Signup modal */}
       {modal&&(
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:80,display:'flex',alignItems:'center',justifyContent:'center',padding:'1.5rem'}} onClick={()=>setModal(null)}>
           <div style={{background:'white',borderRadius:24,padding:'1.75rem',width:'100%',maxWidth:400,boxShadow:'0 20px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
@@ -3208,37 +3190,27 @@ const GuestFeedDesktop=({onAuth})=>{
   );
 };
 
-// ── GUEST FEED ────────────────────────────────────────────────
-const GuestFeed=({onAuth})=>{
+// ── GUEST FEED MOBILE ──────────────────────────────────────────
+const GuestFeedMobile=({onAuth})=>{
   const [games,setGames]=React.useState([]);
   const [loading,setLoading]=React.useState(true);
   const [sport,setSport]=React.useState('all');
-  const [modal,setModal]=React.useState(null); // {title,desc} or null
+  const [modal,setModal]=React.useState(null);
   const today=localToday();
-  const isDesktop=window.innerWidth>=768;
-  if(isDesktop)return<GuestFeedDesktop onAuth={onAuth}/>;
-
   React.useEffect(()=>{
-    sb.from('games').select('*').gte('date',today).or('is_private.is.null,is_private.eq.false,show_in_feed.eq.true').order('date',{ascending:true}).then(({data})=>{
-      setGames(data||[]);setLoading(false);
-    });
+    sb.from('games').select('*').gte('date',today).or('is_private.is.null,is_private.eq.false,show_in_feed.eq.true').order('date',{ascending:true}).then(({data})=>{setGames(data||[]);setLoading(false);});
   },[]);
-
   const filtered=games.filter(g=>sport==='all'||g.sport===sport);
-
   const TAB_DESCS={
     find:{title:'Find Players',desc:'Browse athlete profiles, see who plays your sport, and connect with people in your area.'},
     inbox:{title:'Inbox',desc:'Get notified when someone accepts your join request, sends you a friend request, or messages you about a game.'},
     archive:{title:'Archive',desc:'Players can add photos from their games here — a living photo album of every game on SportsMatch.'},
-    profile:{title:'Profile',desc:'Your personal hub: track games you\'ve joined, see your stats, manage friends, and earn host badges.'},
+    profile:{title:'Profile',desc:"Your personal hub: track games you've joined, see your stats, manage friends, and earn host badges."},
     create:{title:'Create a Game',desc:'Host your own pickup game — set the sport, time, location, and how many players you need.'},
   };
-
   const prompt=(key)=>setModal(TAB_DESCS[key]);
-
   return(
     <div style={{maxWidth:480,margin:'0 auto',minHeight:'100vh',background:'#f8fafc',paddingBottom:80}}>
-      {/* Header */}
       <div style={{background:'linear-gradient(160deg,#052e16,#14532d)',padding:'1.25rem 1.25rem .75rem'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
           <span className="syne" style={{color:'white',fontSize:'1.3rem',fontWeight:800}}>Sports<span style={{color:'#4ade80'}}>Match</span></span>
@@ -3256,15 +3228,11 @@ const GuestFeed=({onAuth})=>{
           ))}
         </div>
       </div>
-
-      {/* Sport filter */}
       <div style={{padding:'10px 1.25rem 4px',overflowX:'auto'}} className="scrollbar-hide">
         <div style={{display:'flex',gap:8,width:'max-content'}}>
           {['all',...SPORTS.map(s=>s.id)].map(s=>{const info=SPORTS.find(x=>x.id===s);const active=sport===s;return<button key={s} onClick={()=>setSport(s)} style={{padding:'6px 14px',borderRadius:99,fontSize:'.75rem',fontWeight:600,border:'none',cursor:'pointer',whiteSpace:'nowrap',transition:'all .15s',background:active?'#16a34a':'white',color:active?'white':'#475569',boxShadow:active?'0 2px 8px rgba(22,163,74,.3)':'0 1px 3px rgba(0,0,0,.06)'}}>{s==='all'?'All':`${info.e} ${info.l}`}</button>;})}
         </div>
       </div>
-
-      {/* Games */}
       <div style={{padding:'.75rem 1.25rem',display:'grid',gap:12}}>
         {loading&&<div style={{display:'flex',justifyContent:'center',padding:'3rem'}}><Spin c='#16a34a' s={28}/></div>}
         {!loading&&filtered.length===0&&(
@@ -3276,21 +3244,15 @@ const GuestFeed=({onAuth})=>{
           </div>
         )}
         {!loading&&filtered.map((g,i)=>{
-          const color=SPORT_COLOR[g.sport]||'#16a34a';
-          const sp=sportInfo(g.sport);
+          const color=SPORT_COLOR[g.sport]||'#16a34a';const sp=sportInfo(g.sport);
           return(
             <div key={g.id} className="card up" style={{animationDelay:`${i*55}ms`,overflow:'hidden',cursor:'pointer'}} onClick={()=>prompt('create')}>
               <div style={{height:4,background:`linear-gradient(90deg,${color},${color}44)`}}/>
               <div style={{padding:'1rem'}}>
-                {/* Title — fully visible */}
                 <div style={{display:'flex',gap:10,marginBottom:10,alignItems:'flex-start'}}>
                   <div style={{width:42,height:42,borderRadius:12,background:`${color}12`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.3rem',flexShrink:0}}>{sp.e}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <p style={{fontWeight:700,fontSize:'.88rem',color:'#0f172a',lineHeight:1.3}}>{g.title}</p>
-                    <p style={{fontSize:'.72rem',color:'#94a3b8',marginTop:2}}>Sign up to see details</p>
-                  </div>
+                  <div style={{flex:1,minWidth:0}}><p style={{fontWeight:700,fontSize:'.88rem',color:'#0f172a',lineHeight:1.3}}>{g.title}</p><p style={{fontSize:'.72rem',color:'#94a3b8',marginTop:2}}>Sign up to see details</p></div>
                 </div>
-                {/* Blurred info rows */}
                 <div style={{position:'relative',borderRadius:10,overflow:'hidden'}}>
                   <div style={{display:'grid',gap:3,marginBottom:10,filter:'blur(4px)',userSelect:'none',pointerEvents:'none'}}>
                     <p style={{fontSize:'.72rem',color:'#64748b'}}>📍 {'█████████ · ████████████'}</p>
@@ -3301,17 +3263,12 @@ const GuestFeed=({onAuth})=>{
                     <span style={{fontSize:'.7rem',fontWeight:700,color:'#16a34a',background:'white',padding:'3px 10px',borderRadius:99,boxShadow:'0 1px 4px rgba(0,0,0,.1)'}}>🔒 Sign up to see</span>
                   </div>
                 </div>
-                {/* Blurred progress bar */}
-                <div style={{filter:'blur(3px)',borderRadius:99,overflow:'hidden',height:4,background:'#e2e8f0'}}>
-                  <div style={{width:'60%',height:'100%',background:`linear-gradient(90deg,${color},${color}88)`}}/>
-                </div>
+                <div style={{filter:'blur(3px)',borderRadius:99,overflow:'hidden',height:4,background:'#e2e8f0'}}><div style={{width:'60%',height:'100%',background:`linear-gradient(90deg,${color},${color}88)`}}/></div>
               </div>
             </div>
           );
         })}
       </div>
-
-      {/* Guest nav */}
       <div className="nav" style={{padding:'.45rem .1rem .85rem'}}>
         <button className="nav-item" style={{padding:'.25rem .3rem'}} onClick={()=>{}}>
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke='#16a34a' strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -3337,8 +3294,6 @@ const GuestFeed=({onAuth})=>{
           <span className="nav-label" style={{color:'#94a3b8',fontSize:'.52rem'}}>Profile</span>
         </button>
       </div>
-
-      {/* Signup modal */}
       {modal&&(
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:80,display:'flex',alignItems:'center',justifyContent:'center',padding:'1.5rem'}} onClick={()=>setModal(null)}>
           <div style={{background:'white',borderRadius:24,padding:'1.75rem',width:'100%',maxWidth:360,boxShadow:'0 20px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
@@ -3356,6 +3311,13 @@ const GuestFeed=({onAuth})=>{
       )}
     </div>
   );
+};
+
+
+// ── GUEST FEED (router) ───────────────────────────────────────
+const GuestFeed=({onAuth})=>{
+  if(window.innerWidth>=768)return<GuestFeedDesktop onAuth={onAuth}/>;
+  return<GuestFeedMobile onAuth={onAuth}/>;
 };
 
 // ── APP ───────────────────────────────────────────────────────
@@ -3410,10 +3372,9 @@ const App=()=>{
   if(!user)return(
     <>
       <GuestFeed onAuth={mode=>setAuthMode(mode)}/>
-      {authMode&&<AuthSheet mode={authMode} onAuth={handleAuth} onClose={()=>setAuthMode(null)}/>}
+      {authMode&&<AuthSheet mode={authMode} onAuth={handleAuth} onClose={()=>setAuthMode(null)}/> }
     </>
   );
-
   if(needsOnboarding(user))return<Onboarding user={user} onComplete={u=>updateUser(u)}/>;
 
   if(!user.tos_accepted_at)return<ToSGate user={user} onAccept={u=>updateUser(u)}/>;
